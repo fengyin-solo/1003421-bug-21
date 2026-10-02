@@ -68,4 +68,15 @@ npm run build
 - 字段、状态、动作与流转目标集中在 `frontend/src/data/modules.ts`；示例数据在
   `frontend/src/data/seed.ts`。
 - 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
-- 想回到初始数据：清掉浏览器里 `forest-fire-patrol:entries` 这一项，或调用 `resetModule(模块)`。
+- 巡护任务的口径：`已完成` 与 `已取消` 是两个互斥终态（`terminalStates`），先到的终态
+  闭环，取消与完成并发时后一个动作会被拒绝；取消计入运营异常（`abnormalStates`），完成
+  不计。待办与异常量由状态直接派生，历史 localStorage 数据自动校正，无需迁移。
+- 每次成功流转都会在「处置台账」（导航 `/ledger`）留一份记录，归属人取自模块配置的
+  `ownerField`（巡护任务记在原巡护员名下，历史数据无该字段记「—」）。
+- 业务数据与台账在同一个 localStorage key（`forest-fire-patrol:data:v2`）里事务落盘：
+  写入失败时内存缓存不提交，列表、详情、待办与台账一起回退；首次打开会自动迁移旧版
+  `forest-fire-patrol:entries` 数据。
+- 巡护任务详情：`/patrol/<id>`，状态、待办、异常与列表和工作台同源，也可直接执行动作。
+- 想回到初始数据：清掉浏览器里 `forest-fire-patrol:data:v2` 这一项，或调用 `resetModule(模块)`。
+- 数据层逻辑自检：`node frontend/scripts/verify-logic.mjs`（mock 存储，覆盖终态互斥、
+  异常口径、历史归属、台账与保存失败回退）。

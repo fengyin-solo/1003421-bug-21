@@ -43,11 +43,16 @@
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
-          <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td v-for="column in columns" :key="column">
+            <template v-if="column === '任务编号'">
+              <RouterLink class="link" :to="`/patrol/${row.id}`">{{ row[column] ?? '—' }}</RouterLink>
+            </template>
+            <template v-else>{{ row[column] ?? '—' }}</template>
+          </td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
             <button
-              v-for="action in actions"
+              v-for="action in actionSet(row)"
               :key="action"
               class="link"
               type="button"
@@ -55,6 +60,7 @@
             >
               {{ action }}
             </button>
+            <span v-if="!actionSet(row).length" class="muted">已闭环</span>
           </td>
         </tr>
         <tr v-if="!rows.length">
@@ -74,6 +80,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import {
+  availableActions,
   downloadEntries,
   listEntries,
   moduleMeta,
@@ -83,7 +90,6 @@ import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('patrol')
 const columns = ["任务编号", "巡护区域", "巡护路线", "巡护员", "巡护日期", "巡护时段", "发现火情数", "任务状态"]
-const actions = ["开始巡护", "确认完成", "取消任务"]
 const statuses = ["待执行", "执行中", "已完成", "已取消"]
 const stats = [{"label": "今日任务数", "value": 0}, {"label": "已完成任务", "value": 0}, {"label": "巡护覆盖率", "value": 0}]
 
@@ -98,6 +104,11 @@ const statusSummary = computed(() =>
     count: rows.value.filter((row) => String(row.status) === status).length,
   })),
 )
+
+// 动作入口与服务端终态守卫保持一致：完成/取消互斥，进入任一终态后收口。
+function actionSet(row: EntryRow): string[] {
+  return availableActions(meta, row)
+}
 
 function resetFilters() {
   filters.value = {}
