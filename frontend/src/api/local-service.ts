@@ -3,7 +3,26 @@ import { allRows, listRows, resetRows, saveRows } from '@/data/local-store'
 import type { ActionResult, EntryRow, ModuleMeta, OverviewResult, PageResult } from '@/data/types'
 
 // 会写进数据的「往回走」动作：命中就把这条记录标成异常态，看板上能一眼看出来。
-const NEGATIVE_ACTIONS = ['撤销', '作废', '拒绝', '驳回', '停用', '忽略', '下线', '回滚']
+// 取消/中止代表任务没有按计划走完，同样计入异常，处置台账（看板异常量）要多出这一份。
+const NEGATIVE_ACTIONS = ['撤销', '作废', '拒绝', '驳回', '停用', '忽略', '下线', '回滚', '取消', '中止']
+
+// 终态：模块显式配置了 terminalStatuses 就按配置走，否则沿用旧口径取状态列表最后一个。
+function terminalStatuses(meta: ModuleMeta): string[] {
+  return meta.terminalStatuses ?? meta.statuses.slice(-1)
+}
+
+// 异常判定：动作命中负向动词，或状态落在模块声明的异常状态上。
+function isAbnormalResult(meta: ModuleMeta, action: string, status: string): boolean {
+  const byAction = NEGATIVE_ACTIONS.some((verb) => action.startsWith(verb))
+  const byStatus = meta.abnormalStatuses?.includes(status) ?? false
+  return byAction || byStatus
+}
+
+// 台账口径：历史记录的 abnormal 标志可能缺失，但状态已经是取消/中止，照样要计入异常，
+// 这样归属到旧巡护员名下的历史数据也能被统计到，不依赖补数据。
+function isAbnormalRow(meta: ModuleMeta, row: EntryRow): boolean {
+  return Boolean(row.abnormal) || (meta.abnormalStatuses?.includes(String(row.status)) ?? false)
+}
 
 export function moduleMeta(key: string): ModuleMeta {
   const meta = MODULE_BY_KEY.get(key)
@@ -43,16 +62,25 @@ export function runAction(key: string, id: number, action: string): ActionResult
   if (current === target) {
     return { ok: false, message: `${meta.entity}已经是「${target}」，不用重复操作` }
   }
-  const lastStatus = meta.statuses[meta.statuses.length - 1]
+  const finals = terminalStatuses(meta)
+  if (finals.includes(current)) {
+    // 取消与完成并发时只允许一个终态：已落终态的任务不能再被另一个终态覆盖。
+    return { ok: false, message: `${meta.entity}已是终态「${current}」，不能再执行「${action}」` }
+  }
   const updated: EntryRow = {
     ...rows[index],
     status: target,
-    pending: target !== lastStatus,
-    abnormal: NEGATIVE_ACTIONS.some((verb) => action.startsWith(verb)),
+    pending: !finals.includes(target),
+    abnormal: isAbnormalResult(meta, action, target),
   }
   const next = [...rows]
   next[index] = updated
-  saveRows(key, next)
+  try {
+    saveRows(key, next)
+  } catch {
+    // 保存失败不动缓存：列表、详情和待办继续读到旧数据，整单回退。
+    return { ok: false, message: `${meta.entity}${action}保存失败，数据已回退，请重试` }
+  }
   return { ok: true, message: `${meta.entity}已${action}，当前状态「${target}」` }
 }
 
@@ -92,7 +120,7 @@ export function loadOverview(): OverviewResult {
       name: meta.name,
       created: entries.length,
       pending: entries.filter((row) => row.pending).length,
-      abnormal: entries.filter((row) => row.abnormal).length,
+      abnormal: entries.filter((row) => isAbnormalRow(meta, row)).length,
     }
   })
   const cards = [

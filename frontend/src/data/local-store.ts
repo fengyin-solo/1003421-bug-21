@@ -42,10 +42,12 @@ export function listRows(key: string): EntryRow[] {
 
 export function saveRows(key: string, rows: EntryRow[]): void {
   const next = { ...allRows(), [key]: rows }
-  cache = next
+  // 先落存储、后换缓存：写入抛错时缓存保持原样，列表、详情、待办读到的仍是旧数据，
+  // 不会出现列表已变而存储/工作台没跟上的半成功状态。
   if (typeof window !== 'undefined' && window.localStorage) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   }
+  cache = next
 }
 
 export function resetRows(key: string): EntryRow[] {

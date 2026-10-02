@@ -11,6 +11,8 @@ export const MODULES: ModuleMeta[] = [
     statuses: ["待执行", "执行中", "已完成", "已取消"],
     actions: ["开始巡护", "确认完成", "取消任务"],
     actionTargets: {"开始巡护": "执行中", "确认完成": "已完成", "取消任务": "已取消"},
+    terminalStatuses: ["已完成", "已取消"],
+    abnormalStatuses: ["已取消"],
     metrics: ["今日任务数", "已完成任务", "巡护覆盖率"],
   },
   {
@@ -99,6 +101,8 @@ export const MODULES: ModuleMeta[] = [
     statuses: ["待执行", "飞行中", "已完成", "因故中止"],
     actions: ["开始飞行", "确认完成", "中止任务"],
     actionTargets: {"开始飞行": "飞行中", "确认完成": "已完成", "中止任务": "因故中止"},
+    terminalStatuses: ["已完成", "因故中止"],
+    abnormalStatuses: ["因故中止"],
     metrics: ["今日飞行任务", "已完成任务", "发现异常数"],
   },
   {
@@ -110,6 +114,8 @@ export const MODULES: ModuleMeta[] = [
     statuses: ["待开展", "进行中", "已完成", "已取消"],
     actions: ["开展活动", "确认完成", "取消活动"],
     actionTargets: {"开展活动": "进行中", "确认完成": "已完成", "取消活动": "已取消"},
+    terminalStatuses: ["已完成", "已取消"],
+    abnormalStatuses: ["已取消"],
     metrics: ["本月活动数", "已完成数", "覆盖人次"],
   },
   {
